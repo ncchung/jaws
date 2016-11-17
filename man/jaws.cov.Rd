@@ -4,8 +4,9 @@
 \alias{jaws.cov}
 \title{The Jackstraw Weighted Shrinkage Estimation Method for High-Dimensional Covariance Matrices}
 \usage{
-jaws.cov(dat, r = NULL, jaws.pca.obj = NULL, extra.shrinkage = NULL,
-  verbose = TRUE, seed = NULL)
+jaws.cov(dat, r = NULL, jaws.pca.obj = NULL,
+  stat.shrinkage = "F-statistics", extra.shrinkage = NULL, verbose = TRUE,
+  seed = NULL)
 }
 \arguments{
 \item{dat}{a data matrix with \code{m} rows as variables and \code{n} columns as observations.}
@@ -13,6 +14,8 @@ jaws.cov(dat, r = NULL, jaws.pca.obj = NULL, extra.shrinkage = NULL,
 \item{r}{a number of significance principal components (\code{r < n}).}
 
 \item{jaws.pca.obj}{a jaws.pca output (optional).}
+
+\item{stat.shrinkage}{PNV shrinkage may be applied to "F-statistics" or "loadings" (default: F-statistics).}
 
 \item{extra.shrinkage}{extra shrinkage methods may be used; see details below (optional).}
 
@@ -32,7 +35,8 @@ With appropriate \code{extra.shrinkage} options (for details, see the Supplement
 \description{
 Estimates a covariance matrix of \code{m} variables (rows) from \code{n} samples (columns), when \code{m > n}.
 Shrinkage estimators of principal component loadings are used to construct a high-dimensional covariance matrix.
-The only required inputs are the data matrix \code{dat} and the number of principal components \code{r} to be used.
+Although several options are available to control characteristics of jackstraw weighted shrinkage (see \code{jaws.pca}),
+the required inputs are the data matrix \code{dat} and the number of principal components \code{r} to be used.
 }
 \details{
 By default, \code{jaws.cov} computes two canonical jackstraw weighted shrinkage estimators, namely \code{PIP} and \code{PNV}.
@@ -41,8 +45,8 @@ Additionally, extra shrinkage techniques may apply, such as soft- or hard-thresh
 Please provide \code{r} numerical threshold values to be applied to \code{r} principal components.
 
 This algorithm applies shrinkage to the signal component of the covariance matrix, and assumes the independently distributed noise.
-
-Since \code{jaws.cov} first runs \code{jaws.pca} on the data, you may manually supply the output of \code{jaws.pca}.
+Since this function relies on shrunken loadings of PCs, you may first run \code{jaws.pca} on \code{dat} with a greater control over optional arguments
+and supply its output \code{jaws.pca.obj} to this function.
 }
 \examples{
 set.seed(1234)

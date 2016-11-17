@@ -23,6 +23,7 @@
 #' @param r a number (a positive integer) of significance principal components.
 #' @param s a number (a positive integer) of ``synthetic'' null variables (optional).
 #' @param B a number (a positive integer) of resampling iterations (optional).
+#' @param stat.shrinkage PNV shrinkage may be applied to "F-statistics" or "loadings" (default: F-statistics).
 #' @param extra.shrinkage extra shrinkage methods may be used; see details below (optional).
 #' @param verbose a logical specifying to print the progress (default: TRUE).
 #' @param save.all a logical specifying to save all objects, including a large SVD object (default: FALSE).
@@ -68,8 +69,8 @@
 #' ## estimate sparse loadings in PCA
 #' jaws.pca.out = jaws.pca(dat, r=1)
 #'
-jaws.pca = function(dat, p=NULL, r=NULL, s=NULL, B=NULL, extra.shrinkage=NULL, verbose=TRUE, seed=NULL, save.all=TRUE) {
-  if(!is.null(seed)) set.seed(seed)
+jaws.pca <- function(dat, p=NULL, r=NULL, s=NULL, B=NULL, stat.shrinkage="F-statistics", extra.shrinkage=NULL, verbose=TRUE, seed=NULL, save.all=TRUE) {
+	if(!is.null(seed)) set.seed(seed)
 	m=dim(dat)[1]; n=dim(dat)[2]
 
 	if(is.numeric(extra.shrinkage)) {
@@ -85,14 +86,26 @@ jaws.pca = function(dat, p=NULL, r=NULL, s=NULL, B=NULL, extra.shrinkage=NULL, v
 	if(!(r > 0 && r < n)) { stop("A number of significant PCs is not in valid range between 1 and n."); }
 
 	if(!is.null(p)) p = as.matrix(p)
-	# compute p-values
-	if(is.null(p)) {
-		if(verbose==TRUE) message("\nThe association significance between variables and principal components are computed by the jackstraw.")
-		p = matrix(NA, nrow=m, ncol=r)
-		for(i in 1:r) {
-			p[,i] = jackstraw.PCA(dat, r1=i, r=r, s=s, B=B, verbose=verbose)$p.value
-		}
+	if(is.null(p) & verbose==TRUE) message("\nThe association significance between variables and principal components are computed by the jackstraw.")
+
+	if(stat.shrinkage == "F-statistics") {
+	  # compute p-values when stat.shrinkage=="F-statistics"
+	  p = matrix(NA, nrow=m, ncol=r)
+	  Fstat = matrix(NA, nrow=m, ncol=r)
+	  for(i in 1:r) {
+	    jackstraw.output = jackstraw.PCA(dat, r1=i, r=r, s=s, B=B, verbose=verbose)
+	    p[,i] = jackstraw.output$p.value
+	    Fstat[,i] = jackstraw.output$obs.stat
+	    rm(jackstraw.output)
+	  }
+	} else if(is.null(p) & stat.shrinkage == "loadings") {
+	  # compute p-values when stat.shrinkage=="loadings"
+	  p = matrix(NA, nrow=m, ncol=r)
+	  for(i in 1:r) {
+	    p[,i] = jackstraw.PCA(dat, r1=i, r=r, s=s, B=B, verbose=verbose)$p.value
+	  }
 	}
+
 	if(ncol(p) != r | nrow(p) != m) stop("The p-value matrix must match m (nrow) and r (ncol).")
 
 	# compute pi0
@@ -125,7 +138,12 @@ jaws.pca = function(dat, p=NULL, r=NULL, s=NULL, B=NULL, extra.shrinkage=NULL, v
 	if(verbose==TRUE) message(paste0("Computing the PNV Shrunken Loadings for the PC (r=", r, ") : "))
 	PNV = list(pi0=pi0, u=as.matrix(svd.raw$u[,1:r]), var=vector("numeric", r), PVE=vector("numeric", r))
 	for(i in 1:r) {
-		PNV$u[which(rank(abs(PNV$u[,i])) <= m*pi0[i]),i] = 0	# <= choice ensures a conservative sparsity in a case of ties
+	  if(stat.shrinkage == "F-statistics") {
+	    PNV$u[which(rank(abs(Fstat[,i])) <= m*pi0[i]),i] = 0
+	  } else if(stat.shrinkage == "loadings") {
+			PNV$u[which(rank(abs(PNV$u[,i])) <= m*pi0[i]),i] = 0
+	  }
+
 		PNV$var[i] = svd.raw$d[i]^2 * sum(PNV$u[,i]^2) #=sum(diag(e.PNV %*% t(e.PNV)))
 		PNV$PVE[i] = PNV$var[i] / var.total
 		if(verbose==TRUE) cat(paste(i," "))
@@ -135,7 +153,7 @@ jaws.pca = function(dat, p=NULL, r=NULL, s=NULL, B=NULL, extra.shrinkage=NULL, v
 	if(save.all == FALSE) {
 		out = list(call=match.call(), p=p, pi0=pi0, PIP=PIP, PNV=PNV, r2=r2)
 	} else {
-	  out = list(call=match.call(), p=p, pi0=pi0, svd=svd.raw, PIP=PIP, PNV=PNV, r2=r2)
+		out = list(call=match.call(), p=p, pi0=pi0, svd=svd.raw, PIP=PIP, PNV=PNV, r2=r2)
 	}
 
 	##############################################################################################################################
@@ -158,12 +176,9 @@ jaws.pca = function(dat, p=NULL, r=NULL, s=NULL, B=NULL, extra.shrinkage=NULL, v
  		PIPsoft = list(threshold=vector(mode="numeric", length=r), pr=matrix(NA, nrow=m, ncol=r), u=matrix(NA, nrow=m, ncol=r), var=vector("numeric", r), PVE=vector("numeric", r))
 		for(i in 1:r) {
 			PIPsoft$threshold[i] = max(PIP$pr[which(rank(PIP$pr[,i]) <= round(pi0[i]*m)),i])
+
 			if(PIPsoft$threshold[i]<1) PIPsoft$pr[,i] = sapply(PIP$pr[,i], function(x) max((x - PIPsoft$threshold[i]), 0) / (1-PIPsoft$threshold[i]))
 			if(PIPsoft$threshold[i]==1) PIPsoft$pr[,i] = rep(0, m)
-
-			# PIPsoft$threshold[i] = min(PIP$lfdr[which(rank(p[,i]) > round((1-pi0[i])*m)),i])
-			# if(PIPsoft$threshold[i]>0) PIPsoft$lfdr[,i] = sapply(PIP$lfdr[,i], function(x) (PIPsoft$threshold[i] - max((PIPsoft$threshold[i] - x), 0)) / PIPsoft$threshold[i])
-			# if(PIPsoft$threshold[i]==0) PIPsoft$lfdr[,i] = rep(1, m)
 
 			PIPsoft$u[,i] = PIPsoft$pr[,i] * svd.raw$u[,i]
 			PIPsoft$var[i] = svd.raw$d[i]^2 * sum(PIPsoft$u[,i]^2)

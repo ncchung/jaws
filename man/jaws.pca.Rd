@@ -5,7 +5,8 @@
 \title{The Jackstraw Weighted Shrinkage Estimation Method for Sparse Loadings in Principal Component Analysis}
 \usage{
 jaws.pca(dat, p = NULL, r = NULL, s = NULL, B = NULL,
-  extra.shrinkage = NULL, verbose = TRUE, seed = NULL, save.all = TRUE)
+  stat.shrinkage = "F-statistics", extra.shrinkage = NULL, verbose = TRUE,
+  seed = NULL, save.all = TRUE)
 }
 \arguments{
 \item{dat}{a data matrix with \code{m} rows as variables and \code{n} columns as observations.}
@@ -17,6 +18,8 @@ jaws.pca(dat, p = NULL, r = NULL, s = NULL, B = NULL,
 \item{s}{a number (a positive integer) of ``synthetic'' null variables (optional).}
 
 \item{B}{a number (a positive integer) of resampling iterations (optional).}
+
+\item{stat.shrinkage}{PNV shrinkage may be applied to "F-statistics" or "loadings" (default: F-statistics).}
 
 \item{extra.shrinkage}{extra shrinkage methods may be used; see details below (optional).}
 

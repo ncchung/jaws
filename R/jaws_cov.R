@@ -2,7 +2,8 @@
 #'
 #' Estimates a covariance matrix of \code{m} variables (rows) from \code{n} samples (columns), when \code{m > n}.
 #' Shrinkage estimators of principal component loadings are used to construct a high-dimensional covariance matrix.
-#' The only required inputs are the data matrix \code{dat} and the number of principal components \code{r} to be used.
+#' Although several options are available to control characteristics of jackstraw weighted shrinkage (see \code{jaws.pca}),
+#' the required inputs are the data matrix \code{dat} and the number of principal components \code{r} to be used.
 #'
 #' By default, \code{jaws.cov} computes two canonical jackstraw weighted shrinkage estimators, namely \code{PIP} and \code{PNV}.
 #' Additionally, extra shrinkage techniques may apply, such as soft- or hard-thresholding posterior inclusion probabilities
@@ -10,12 +11,13 @@
 #' Please provide \code{r} numerical threshold values to be applied to \code{r} principal components.
 #'
 #' This algorithm applies shrinkage to the signal component of the covariance matrix, and assumes the independently distributed noise.
-#'
-#' Since \code{jaws.cov} first runs \code{jaws.pca} on the data, you may manually supply the output of \code{jaws.pca}.
+#' Since this function relies on shrunken loadings of PCs, you may first run \code{jaws.pca} on \code{dat} with a greater control over optional arguments
+#' and supply its output \code{jaws.pca.obj} to this function.
 #'
 #' @param dat a data matrix with \code{m} rows as variables and \code{n} columns as observations.
 #' @param r a number of significance principal components (\code{r < n}).
 #' @param jaws.pca.obj a jaws.pca output (optional).
+#' @param stat.shrinkage PNV shrinkage may be applied to "F-statistics" or "loadings" (default: F-statistics).
 #' @param extra.shrinkage extra shrinkage methods may be used; see details below (optional).
 #' @param verbose a logical specifying to print the progress (default: TRUE).
 #' @param seed a seed for the random number generator (optional).
@@ -47,7 +49,7 @@
 #'
 #' ## estimate large-scale covariance matrix
 #' jaws.cov.out = jaws.cov(dat, r=1)
-jaws.cov = function(dat, r=NULL, jaws.pca.obj=NULL, extra.shrinkage=NULL, verbose=TRUE, seed=NULL) {
+jaws.cov <- function(dat, r=NULL, jaws.pca.obj=NULL, stat.shrinkage="F-statistics", extra.shrinkage=NULL, verbose=TRUE, seed=NULL) {
   #jaws.pca.obj=NULL; extra.shrinkage=NULL; verbose=TRUE; seed=NULL
   if(!is.null(seed)) set.seed(seed)
 	m=dim(dat)[1]; n=dim(dat)[2]
@@ -59,7 +61,7 @@ jaws.cov = function(dat, r=NULL, jaws.pca.obj=NULL, extra.shrinkage=NULL, verbos
 	if(!(r > 0 && r < n)) { stop("A number of significant PCs is not in valid range between 1 and n."); }
 
 	if(is.null(jaws.pca.obj)) {
-		jaws.pca.obj = jaws.pca(dat=dat, r=r, extra.shrinkage=extra.shrinkage, verbose=verbose)
+		jaws.pca.obj = jaws.pca(dat=dat, r=r, stat.shrinkage=stat.shrinkage, extra.shrinkage=extra.shrinkage, verbose=verbose)
 	}
 
 	# if(shrink.var.res==TRUE) {
